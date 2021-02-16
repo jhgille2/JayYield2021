@@ -1,0 +1,87 @@
+---
+title: "2021 Jay Yield Analysis Writeup"
+author: "Jay Gillenwater"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  tufte::tufte_html:
+  number_sections: TRUE
+  fig_caption: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(drake)
+```
+
+## Introduction
+The purpose of this document is to record the data analysis process for the 2021 Jay Yield trial data. The goal is to provide a set of methods, images, and relevant summary tables that can be easily included in a more formal manuscript. 
+
+### Exploratory analysis
+I'll start with a high-level overview of the data itself. In total, there are 33 unique genotypes which were grown in three replications in four environments. These four environments consist of two growing years (2019 and 2020) with two growing locations per year. In 2019 the genotypes were grown in Kinston, NC (CAS), and the Tidewater Research Station (PLY), while in 2020, the genotypes were grown at the Central Crops Research Station (CLA), and the Kinston research farm (CAS).  
+
+<br>
+```{r, MetanInspect, echo = FALSE, warning=FALSE, message=FALSE}
+loadd(ExploratoryAnalysis)
+options(knitr.kable.NA = '')
+ExploratoryAnalysis$BasicSummary
+```
+<br>
+  
+Yield, seed protein, and seed oil were the three primary traits of interest in this study. However, several other agronomic traits were measured as can be seed in the table above. These other traits have noticeable more missing data than protein, oil, or yield. This is because some of these agronomic traits were only recorded for a subset of the replications. For example, in 2019 each genotype was grown in three replications but SDWT was only measured on reps one and two, while in 2020 each genotype was grown in four replications and SDWT was taken on reps one, two, and three. Seed protein, oil, and yield was taken for three reps for both years though.  
+<br>
+  
+```{r, TraitComparison, echo = FALSE, fig.dim=c(8, 10), fig.cap = "Average phenotype measurements across genotypes and environemnts."}
+ExploratoryAnalysis$GenoByEnvironmentPlot
+```
+  
+Inspection of **figure 1** reveals some general trends. Arguably the most prominent is in the yield data. It looks like the environment had a pretty substantial effect on yield, with genotypes in PLY-2019 tending to outperform nearly all other environments. On the other side of the coin, genotypes in CAS-2020 tended to yield far less than in other environments. This is likely due to standing water that was present at that location during the growing season. Another, more subtle pattern that is revealed is the tendency for lines in the 2020 growing season to have slightly higher protein, and lower oil than in 2019. This was noticed when taking measurements on independent trials, and may be a systematic error from the NIR instrument instead of a physical change in seed composition.  
+
+These patterns may be easier to see in **figure 2** which shows the same data but as a set of histograms.  
+
+<br>
+```{r, TraitHistograms, echo = FALSE, warning=FALSE, fig.dim=c(8, 8), fig.cap="Histograms of seed oil, seed protein, and seed yield."}
+ExploratoryAnalysis$MainTraitHistograms
+```
+<br>
+
+Even without coloring by location, it is obvious that there seems to be some factor influencing the distribution of yield, indicated by the mltimodal layout. Coloring the bars by location makes it more obvious that the environment is playing a substanital role in shaping these distributions. The patterns in protein in oil are more subtle, but still present as you can see that oil content tended to be higher in 2019, and the opposite for seed protein.
+
+Next, I'll look at the Pearson's correlation matrix for the traits to get a sense for how each trait relates the others. 
+
+<br>
+```{r, CorrMat, echo = FALSE, fig.align='center', fig.cap="Pearson's correlation coefficients with p-values for measured traits.", message=FALSE, warning=FALSE}
+ExploratoryAnalysis$CorrelationPlot
+
+```
+<br>
+There are many significant (p <0.001) correlations among the traits. Some notable correlations with large magnitudes are between agscore and lodging, protein and oil, and yield and oil. These observations match well with previous observations on the correlation structure of these traits as protein and oil tend  and yield and protein tend to have an inverse correlation with one another. The correlation between lodging and agscore is not surprising as heavily lodged plants were likely to get a poor (high) agscore as lodging is one of the most easily noticed physical properties which contributed to the agscore. 
+
+### Statistical analysis
+The model I will use to analyze this data is:  
+$$y_{ijk} = \mu + \tau_{j} + (\alpha\tau)_{ij} + \gamma_{jk} + \epsilon_{ijk}$$
+Where $y_{ijk}$ is the value of some measured trait in the $k$th replication of the $i$th genotype in the $j$th environment. $\mu$ is the grand mean, $\alpha_i$ is the effect of the $i$th genotype; $\tau_j$ is the effect of the $j$th environment $(\alpha\tau)_{ij}$ is the interaction of the $i$th genotype with the $j$th environment, $\gamma_{jk}$ is the effect of the $k$th block within the $j$th environment, and $\epsilon_{ijk}$ is the residual error. This is fit as a mixed effects model where genotype, and its interaction with the environment are taken to be random effects while environment and replication within environment are considered to be fixed effects. 
+
+
+## Reproducibility
+
+<details><summary>Reproducibility receipt</summary>
+
+```{r}
+## datetime
+Sys.time()
+
+## repository
+if(requireNamespace('git2r', quietly = TRUE)) {
+  git2r::repository()
+} else {
+  c(
+    system2("git", args = c("log", "--name-status", "-1"), stdout = TRUE),
+    system2("git", args = c("remote", "-v"), stdout = TRUE)
+  )
+}
+
+## session info
+sessionInfo()
+```
+
+</details>

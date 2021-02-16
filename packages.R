@@ -15,8 +15,16 @@ library(janitor)
 # Visualization
 library(ggplot2)
 library(ggcorrplot)
-library(cowplot)
+#library(cowplot)
+library(patchwork)
+library(gt)
+library(ggthemes)
+library(tufte)
 
 # Analysis
 library(emmeans)
 library(lme4)
+library(metan)
+library(rmarkdown)
+library(bookdown)
+

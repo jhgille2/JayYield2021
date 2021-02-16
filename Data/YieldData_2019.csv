@@ -1,4 +1,4 @@
-Test,Loc,Year,Genotype,Code,Rep,Plot,FC,MD,AgScore,PB,HT,DET,LOD,Yield,SDWT,Estimated_SeedCount,Oil,Protein,Protein_Plus_Oil
+Test,Loc,Year,Genotype,Code,Rep,Plot,FC,MD,AgScore,PB,HT,DET,LOD,Yield,SDWT,Estimated_Seed_Count,Oil,Protein,Protein_Plus_Oil
 Yield Test 1,Ply,2019,Dunphy,44,1,10,P,50,2.5,G,35,D,2,2971.623002,15.6,8583.333333,22.39,39.73,62.12
 Yield Test 1,Ply,2019,Dunphy,44,2,58,P,50,2,G,32,D,2.5,2885.292805,15.7,8280.89172,23.13,40.86,63.99
 Yield Test 1,Ply,2019,Dunphy,44,3,130,P,50,3.5,G,36,D,2.5,3312.061366,NA,NA,22.66,41.19,63.85
