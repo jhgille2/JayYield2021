@@ -11,7 +11,7 @@ explore_BalancedData <- function(BalancedData) {
   # and gives some basic summary statistics
   BasicSummary <- inspect(BalancedData, verbose = FALSE) %>%
     kbl(caption = "Basic summary data") %>%
-    kable_classic(full_width = F, html_font = "Cambria") 
+    kable_styling(full_width = F, position = "left")
     
   
   # WHich genotype had the highest score for each phenotype in each environment
@@ -59,7 +59,7 @@ explore_BalancedData <- function(BalancedData) {
            axis.ticks.y = element_blank(),
            axis.title.y = element_blank()) + 
      facet_wrap(~Variable, scales = "free", ncol = 1) + 
-     labs(x = "Value")
+     labs(x = "Value", y = "Count")
    
    Plots_BW + Plots_colour
  }
