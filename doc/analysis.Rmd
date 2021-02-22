@@ -2,6 +2,7 @@
 title: "2021 Jay Yield Analysis Writeup"
 author: "Jay Gillenwater"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
+bibliography: JayYield2021Bibliography.bibtex
 output:
   tufte::tufte_html:
   number_sections: TRUE
@@ -15,7 +16,7 @@ library(drake)
 ```
 
 ## Introduction
-The purpose of this document is to record the data analysis process for the 2021 Jay Yield trial data. The goal is to provide a set of methods, images, and relevant summary tables that can be easily included in a more formal manuscript. 
+The purpose of this document is to record the data analysis process for the 2021 Jay Yield trial data. The goal is to provide set of methods, images, and relevant summary tables in that can be easily included in a more formal manuscript. 
 
 ### Exploratory analysis
 I'll start with a high-level overview of the data itself. In total, there are 33 unique genotypes which were grown in three replications in four environments. These four environments consist of two growing years (2019 and 2020) with two growing locations per year. In 2019 the genotypes were grown in Kinston, NC (CAS), and the Tidewater Research Station (PLY), while in 2020, the genotypes were grown at the Central Crops Research Station (CLA), and the Kinston research farm (CAS).  
@@ -32,6 +33,8 @@ inspect(BalancedData, verbose = FALSE) %>%
 
 ```{r, MetanInspect, echo = FALSE, warning=FALSE, message=FALSE}
 loadd(ExploratoryAnalysis)
+loadd(MixedModels)
+loadd(BLUP_Plots)
 options(knitr.kable.NA = '')
 ExploratoryAnalysis$BasicSummary
 ```
@@ -41,7 +44,7 @@ Yield, seed protein, and seed oil were the three primary traits of interest in t
 
 <br>
 
-<details><summary>Plot code</summary>
+<details><summary>Heatmap code</summary>
 ```{r, TraitCompareCode, eval=FALSE, echo = TRUE}
 # Plots showing the genotype x environment scores for yield, protein, and oil
   #TODO: Modify the ge_plot to produce a more compact, but still readable plot (Make a function for itkable)
@@ -66,7 +69,30 @@ Yield, seed protein, and seed oil were the three primary traits of interest in t
 ExploratoryAnalysis$GenoByEnvironmentPlot
 ```
 <br>
-Inspection of **figure 1** reveals some general trends. Arguably the most prominent is in the yield data. It looks like the environment had a pretty substantial effect on yield, with genotypes in PLY-2019 tending to outperform nearly all other environments. On the other side of the coin, genotypes in CAS-2020 tended to yield far less than in other environments. This is likely due to standing water that was present at that location during the growing season. Another, more subtle pattern that is revealed is the tendency for lines in the 2020 growing season to have slightly higher protein, and lower oil than in 2019. This was noticed when taking measurements on independent trials, and may be a systematic error from the NIR instrument instead of a physical change in seed composition.  
+Inspection of the figure above reveals some general trends. Arguably the most prominent is in the yield data. It looks like the environment had a pretty substantial effect on yield, with genotypes in PLY-2019 tending to outperform nearly all other environments. On the other side of the coin, genotypes in CAS-2020 tended to yield far less than in other environments. A barplot of the yield scores for each genotype can be seen in the plot below.
+
+
+<br>
+
+<details><summary>Barplot code</summary>
+```{r, YieldBarPlot_code, eval=FALSE, echo = TRUE}
+# A barplot version of the above plot
+ Yield_BarPlot <- BalancedData %>%
+   mutate(GEN = fct_reorder(GEN, Yield, .desc = TRUE)) %>%
+   plot_factlines(GEN, ENV, resp = Yield)
+ 
+ Yield_BarPlot <- Yield_BarPlot + theme(axis.text.x = element_text(angle = 90, hjust = 0.5))
+```
+</details>
+  
+```{r, YieldBarPlot, echo = FALSE, fig.dim=c(10, 8), fig.cap = "Yield scores for genotypes across four environments.", fig.fullwidth = TRUE}
+ExploratoryAnalysis$YieldBarPlot
+```
+
+
+
+
+This is likely due to standing water that was present at that location during the growing season. Another, more subtle pattern that is revealed is the tendency for lines in the 2020 growing season to have slightly higher protein, and lower oil than in 2019. This was noticed when taking measurements on independent trials, and may be a systematic error from the NIR instrument instead of a physical change in seed composition.  
 
 These patterns may be easier to see in **figure 2** which shows the same data but as a set of histograms.  
 
@@ -129,12 +155,189 @@ ExploratoryAnalysis$CorrelationPlot
 <br>
 There are many significant (p <0.001) correlations among the traits. Some notable correlations with large magnitudes are between agscore and lodging, protein and oil, and yield and oil. These observations match well with previous observations on the correlation structure of these traits as protein and oil tend  and yield and protein tend to have an inverse correlation with one another. The correlation between lodging and agscore is not surprising as heavily lodged plants were likely to get a poor (high) agscore as lodging is one of the most easily noticed physical properties which contributed to the agscore. 
 
-### Statistical analysis
-The model I will use to analyze this data is:  
+# Statistical modeling
+
+## General purpose
+
+At this point I think it would be worthwhile to go into more detail on the main objectives of this study. The overall objective is to identify soybean lines with exceptional yield, as well as seed oil and seed protein compositions. Exceptional in this context is judged by a genotypes performance relative to existing, high-yielding "check" cultivars which are already commonly grown for their desirable agronomic qualities. Lines with exceptional yield, oil, and protein are rare due to the correlation structure among these traits. As was illustrated in the correlation plot in the exploratory section, yield and protein content are negatively correlated with eachother, as are seed protein and seed oil. What this means in practice is that selecting genotypes on the basis of a single trait alone is likely to compromise the value of another trait which also contributes to the value of the crop.  
+
+Beyond their performance in these traits, it is important for the performance of the genotype relative to others to be reliable over a range of environments. It is common for environments to have some general effect on performance which to a difference in the overall mean of a trait between environments. A clear example of this can be seen by comparing the CAS-2020 and PLY-2019 environments in **figure 1**. However, of special interest is how environments effect the ranking of genotypes between environments. This change of ranking, and the degree to which a genotype's performance deviates from what would be expected given the effect of the environment and the genotype alone is called genotype by environment interaction (GEI). In this context, *stability* means that the change in a genotypes performance for some trait between environments is equal to the change in the mean value of that trait between environments. Deviation from this expected change is an indicator of GEI. Substantial GEI is undesirable as it means growers cannot be sure that a genotype will be able to perform well.
+
+Following this, what is needed is a way to systematically select genotypes on the basis of multiple traits, and accurately assess the stability of their performance in these traits across the environments which were used in this study. For the vast majority of the following analysis, I'll be using the [metan](https://tiagoolivoto.github.io/metan/index.html) package in R, and the functions it provides to streamline the analysis of this kind of data[@RN1961; @RN1960].
+
+
+## Linear Mixed Modeling (LMM)
+Before any selection is done, I have to get accurate estimates of each genotypes performance for each trait. To do this, I will calculate the BLUPs for each trait, for each genotype. The model I will use to analyze this data is:  
 $$y_{ijk} = \mu + \tau_{j} + (\alpha\tau)_{ij} + \gamma_{jk} + \epsilon_{ijk}$$
+<br>
+
+<details><summary>LMM code</summary>
+```{r, MixedCode, eval=FALSE, echo = TRUE}
+fit_MixedModels <- function(BalancedData, TraitSelection = c("Yield", "Oil", "Protein")) {
+
+  # Fit LMMs for the traits in TraitSelection
+  MixedModels <- gamem_met(BalancedData, 
+                           env     = ENV, 
+                           gen     = GEN, 
+                           rep     = REP, 
+                           resp    = TraitSelection, 
+                           verbose = FALSE)
+  
+  # Extract various components and format here for easier presentation
+  
+  # The BLUPs
+  ModelBLUPs <- get_model_data(MixedModels, "blupg")
+  
+  # Genetic paramaters
+  ModelGenPar <- get_model_data(MixedModels, "genpar")
+  
+  # Combine all the components into a list fo easy reference
+  ResultList <- list("BLUP"   = ModelBLUPs,
+                     "GENPAR" = ModelGenPar)
+  
+  ResultList
+}
+```
+</details>
+
 Where $y_{ijk}$ is the value of some measured trait in the $k$th replication of the $i$th genotype in the $j$th environment. $\mu$ is the grand mean, $\alpha_i$ is the effect of the $i$th genotype; $\tau_j$ is the effect of the $j$th environment $(\alpha\tau)_{ij}$ is the interaction of the $i$th genotype with the $j$th environment, $\gamma_{jk}$ is the effect of the $k$th block within the $j$th environment, and $\epsilon_{ijk}$ is the residual error. This is fit as a mixed effects model where genotype, and its interaction with the environment are taken to be random effects while environment and replication within environment are considered to be fixed effects. 
 
 For simplicity, I will give the results for just the yield, protein, and oil traits but the same methodology can apply to the other measured traits. 
+
+These models can be used to extract BLUPs and genetic parameters for the phenotypes. 
+
+ 
+
+<details><summary>BLUPs</summary>
+```{r, ModelBLUPS, echo = FALSE, message=FALSE, warning=FALSE}
+MixedModels$Format_BLUP
+```
+</details>
+
+<details><summary>Genetic Parameters</summary>
+```{r, ModelGenPar, echo = FALSE, message=FALSE, warning=FALSE}
+MixedModels$Format_GENPAR
+```
+</details>
+<break>
+
+First, just look at the BLUPs for each genotype. The points in the plot below are colored blue if the BLUP is greater than the average BLUP for each trait, and red if the BLUP is lower than the average. The bars in each point show the 95% confidence interval for each BLUP.
+<details><summary>BLUP Plot code</summary>
+```{r, BLUP_Plot_Code, echo = TRUE, message=FALSE, warning=FALSE, eval = FALSE}
+  # The waasby models as fit by gamem_met
+  ModelObjects <- MixedModels$ModelObjects
+  
+  # Plots for yield, oil, and protein BLUPs
+  YieldPlot   <- plot_blup(ModelObjects, var = 1)
+  OilPlot     <- plot_blup(ModelObjects, var = 2)
+  ProteinPlot <- plot_blup(ModelObjects, var = 3)
+  
+  # Combine the three plots into one with patchwork
+  AllThreeTraits <- YieldPlot | OilPlot | ProteinPlot
+  
+```
+</details>
+
+```{r, BLUP_Plot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="BLUPs for genotypes with 95% confidence intervals for seed yield, seed oil, and seed protein. Genotypes with BLUPs above the average for each trait are colored blue, while those with a BLUP below the average are colored red.", fig.width=12, fig.height=8}
+BLUP_Plots$BLUP_Plot
+```
+<break>
+
+The same data is shown below as histograms. The positions of check cultivars, and parent genotypes are labeled on each distribution.  
+
+<break>
+<break>
+
+<details><summary>BLUP Histogram Plot code</summary>
+```{r, BLUP_histogram_Plot_Code, echo = TRUE, message=FALSE, warning=FALSE, eval = FALSE}
+  # Histograms with the checks/parents labeled
+  # A function to do this
+  LabeledHistogram <- function(data, measure.vars = c("Protein", "Oil", "Yield"), labelColumn = "Genotype", labelObservations = c("LMN09-119", "N09-09")){
+    
+    # Pivot data to a long format
+    longData <- data %>% 
+      pivot_longer(measure.vars)
+    
+    # The data for the "special" observations that need to be labeled
+    specialObservations <- longData %>%
+      dplyr::filter(!!sym(labelColumn) %in% labelObservations)
+    
+    # Split the dataframe by variable
+    longData_split <- split(longData, longData$name)
+    
+    # Do the same for the special data
+    specialObservations_split <- split(specialObservations, specialObservations$name)
+    
+    
+    # The base plotting function. Takes as an argument a dataframe 
+    # containing measurements for a single phenotype (like AllPheno_long$oil)
+    Plot_initial <- function(TraitData = longData_split$Oil, ParentData = specialObservations_split$Oil, TraitName = "Value"){
+      
+      # Get the initial plot
+      Plot.init <-   ggplot(TraitData, aes(x = value)) + 
+        geom_histogram(color = "black", alpha = 0.6, bins = 10) + 
+        theme_bw() + 
+        ylab("Count") + 
+        theme_ipsum() + 
+        theme(axis.text.x  = element_text(face = "bold", size = 20),
+              axis.text.y  = element_text(face = "bold", size = 20),
+              axis.title.y = element_text(size = 25, hjust = 0.5),
+              axis.title.x = element_text(size = 25, hjust = 0.5),
+              panel.border = element_rect(colour = "black", fill = NA),
+              legend.title = element_text(face = "bold", size = 20),
+              legend.text  = element_text(face = "bold", size = 20)) +
+        labs(x = TraitName)
+      
+      # Data from the initial plot (I want the bin heights)
+      PlotData <- ggplot_build(Plot.init)$data[[1]]
+      
+      # Using the bin counts from the plot, find the y-value where the labels for each
+      # check/parent genotype shoud start
+      ParentData$yval <- NA
+      for(i in 1:nrow(ParentData)){
+        ParentData$yval[[i]] <- PlotData$count[[max(which(PlotData$xmin < ParentData$value[[i]]))]]
+      }
+      
+      # Add labels w/arrows for the parents/checks using this new data
+      FinalPlot <- Plot.init + 
+        ggrepel::geom_label_repel(data = ParentData,
+                                  aes(x = value, y = yval, label = !!sym(labelColumn)),
+                                  nudge_y            = max(PlotData$count)/6,
+                                  arrow              = arrow(length = unit(0.015, "npc")),
+                                  min.segment.length = 1,
+                                  size               = 4,
+                                  show.legend        = FALSE,
+                                  inherit.aes        = FALSE)
+      
+      FinalPlot
+    }
+    
+    AllPlots <- vector("list", length = length(longData_split))
+    names(AllPlots) <- names(longData_split)
+    for(Trait in names(longData_split)){
+      AllPlots[[Trait]] <- Plot_initial(TraitData = longData_split[[Trait]], ParentData = specialObservations_split[[Trait]], TraitName = Trait)
+    }
+    
+    #PatchPlot <- wrap_plots(AllPlots)
+    PatchPlot <- AllPlots$Yield | AllPlots$Oil | AllPlots$Protein
+  }
+  
+  # Use the function to make histograms of the BLUPs
+  HistogramPlots <- LabeledHistogram(data = MixedModels$BLUP, 
+                                     labelColumn = "GEN", 
+                                     labelObservations = c("LMN09-119", "N09-09", "Osage", "Dunphy"))
+  
+```
+</details>
+
+```{r, BLUP_histogram_Plot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="Histograms of BLUPs for seed yield, seed oil, and seed protein. The BLUPs for parents and checks are labeled for each trait.", fig.width=12, fig.height=6, message=FALSE, warning=FALSE}
+BLUP_Plots$Histogram_Plot
+```
+<break>
+
+From these plots I can make a few general observations. In both plots, you can see that several genotypes have yield BLUPs which are comparable with the Dunphy check cultivar. There was also fairly significant transgressive segregation for yield, but less so for seed oil and seed protein. The LMN09-119 parent had the lowest oil content, and the highest protein content. This is expected as it was selected based on it's extreme values in those two traits.  
+
+While calculating the BLUPs for the genotypes is helpful 
 
 
 ## Reproducibility
@@ -160,3 +363,7 @@ sessionInfo()
 ```
 
 </details>
+<br>
+
+# References
+

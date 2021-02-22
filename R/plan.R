@@ -16,10 +16,14 @@ the_plan <-
     # Basically, remove lines from 2020 that aren't in the 2019 data
     BalancedData = Balance_YieldData(YieldData = YieldData$All_WithAg_ThreeReps),
     
-    
-    
     # Make summary tables and plots for EDA
     ExploratoryAnalysis = explore_BalancedData(BalancedData),
+    
+    # Fit LMMs to the balanced data for the traits included in "TraitSelection"
+    MixedModels = fit_MixedModels(BalancedData, TraitSelection = c("Yield", "Oil", "Protein")),
+    
+    # General plots of the BLUPs
+    BLUP_Plots = plot_BLUPs(MixedModels),
     
     
     # The analysis writeup document
