@@ -20,10 +20,22 @@ the_plan <-
     ExploratoryAnalysis = explore_BalancedData(BalancedData),
     
     # Fit LMMs to the balanced data for the traits included in "TraitSelection"
-    MixedModels = fit_MixedModels(BalancedData, TraitSelection = c("Yield", "Oil", "Protein")),
+    MixedModels = fit_MixedModels(BalancedData, 
+                                  TraitSelection = c("Yield", "Oil", "Protein")),
+    
+    # GGE models
+    GGEModels = fit_GGEModels(BalancedData, TraitSelection = c("Yield")),
+    
+    # Plots derived from the gge model
+    GGEPlots = plot_GGEModels(GGEModels),
+    
+    # Genotype by yield*trait plot
+    GYTModel = fit_GYTModel(BalancedData, TraitSelection = c("Protein", "LOD")),
     
     # General plots of the BLUPs
     BLUP_Plots = plot_BLUPs(MixedModels),
+    
+    MTSI_Plots = calc_MTSI(BalancedData), 
     
     
     # The analysis writeup document

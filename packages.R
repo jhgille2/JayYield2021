@@ -20,6 +20,9 @@ library(patchwork)
 library(gt)
 library(ggthemes)
 library(tufte)
+library(kableExtra)
+library(ggrepel)
+library(hrbrthemes)
 
 # Analysis
 library(emmeans)

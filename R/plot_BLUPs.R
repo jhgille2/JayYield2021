@@ -94,11 +94,17 @@ plot_BLUPs <- function(MixedModels) {
                                      labelColumn = "GEN", 
                                      labelObservations = c("LMN09-119", "N09-09", "Osage", "Dunphy"))
   
+  # A plot for future possible selections
+  SelectionPlots <- LabeledHistogram(data = MixedModels$BLUP, 
+                                     labelColumn = "GEN", 
+                                     labelObservations = c("Dunphy", "N18-1796", "N18-1575", "N18-1751"))
+  
   # Combine the BLUP and histogram plots into one plot
   BLUPs_and_Histograms <- AllThreeTraits / HistogramPlots
   
   return(list("BLUP_Plot"               = AllThreeTraits,
               "Histogram_Plot"          = HistogramPlots,
-              "Blup_and_Histogram_Plot" = BLUPs_and_Histograms))
+              "Blup_and_Histogram_Plot" = BLUPs_and_Histograms,
+              "SelectionPlot"           = SelectionPlots))
 
 }

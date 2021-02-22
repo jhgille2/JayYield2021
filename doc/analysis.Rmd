@@ -13,6 +13,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(drake)
+library(dplyr)
 ```
 
 ## Introduction
@@ -35,6 +36,8 @@ inspect(BalancedData, verbose = FALSE) %>%
 loadd(ExploratoryAnalysis)
 loadd(MixedModels)
 loadd(BLUP_Plots)
+loadd(GGEPlots)
+
 options(knitr.kable.NA = '')
 ExploratoryAnalysis$BasicSummary
 ```
@@ -69,7 +72,7 @@ Yield, seed protein, and seed oil were the three primary traits of interest in t
 ExploratoryAnalysis$GenoByEnvironmentPlot
 ```
 <br>
-Inspection of the figure above reveals some general trends. Arguably the most prominent is in the yield data. It looks like the environment had a pretty substantial effect on yield, with genotypes in PLY-2019 tending to outperform nearly all other environments. On the other side of the coin, genotypes in CAS-2020 tended to yield far less than in other environments. A barplot of the yield scores for each genotype can be seen in the plot below.
+Inspection of the figure above reveals some general trends. Arguably the most prominent is in the yield data. It looks like the environment had a pretty substantial effect on yield, with genotypes in PLY-2019 tending to outperform nearly all other environments. On the other side of the coin, genotypes in CAS-2020 tended to yield far less than in other environments. A barplot of the yield scores for each genotype can be seen in the plot below where same general trends in yield can bee seen with some inspection.
 
 
 <br>
@@ -94,7 +97,7 @@ ExploratoryAnalysis$YieldBarPlot
 
 This is likely due to standing water that was present at that location during the growing season. Another, more subtle pattern that is revealed is the tendency for lines in the 2020 growing season to have slightly higher protein, and lower oil than in 2019. This was noticed when taking measurements on independent trials, and may be a systematic error from the NIR instrument instead of a physical change in seed composition.  
 
-These patterns may be easier to see in **figure 2** which shows the same data but as a set of histograms.  
+These patterns may be easier to see in the plot below which shows the same data, but as a set of histograms.  
 
 <br>
 
@@ -169,7 +172,7 @@ Following this, what is needed is a way to systematically select genotypes on th
 ## Linear Mixed Modeling (LMM)
 Before any selection is done, I have to get accurate estimates of each genotypes performance for each trait. To do this, I will calculate the BLUPs for each trait, for each genotype. The model I will use to analyze this data is:  
 $$y_{ijk} = \mu + \tau_{j} + (\alpha\tau)_{ij} + \gamma_{jk} + \epsilon_{ijk}$$
-<br>
+<break>
 
 <details><summary>LMM code</summary>
 ```{r, MixedCode, eval=FALSE, echo = TRUE}
@@ -199,6 +202,7 @@ fit_MixedModels <- function(BalancedData, TraitSelection = c("Yield", "Oil", "Pr
 }
 ```
 </details>
+<break>
 
 Where $y_{ijk}$ is the value of some measured trait in the $k$th replication of the $i$th genotype in the $j$th environment. $\mu$ is the grand mean, $\alpha_i$ is the effect of the $i$th genotype; $\tau_j$ is the effect of the $j$th environment $(\alpha\tau)_{ij}$ is the interaction of the $i$th genotype with the $j$th environment, $\gamma_{jk}$ is the effect of the $k$th block within the $j$th environment, and $\epsilon_{ijk}$ is the residual error. This is fit as a mixed effects model where genotype, and its interaction with the environment are taken to be random effects while environment and replication within environment are considered to be fixed effects. 
 
@@ -221,7 +225,9 @@ MixedModels$Format_GENPAR
 </details>
 <break>
 
-First, just look at the BLUPs for each genotype. The points in the plot below are colored blue if the BLUP is greater than the average BLUP for each trait, and red if the BLUP is lower than the average. The bars in each point show the 95% confidence interval for each BLUP.
+First, I'll just look at the BLUPs for each genotype. The points in the plot below are colored blue if the genotypic BLUP is greater than the average BLUP for each trait, and red if the genotypic BLUP is lower than the average. The bars in each point show the 95% confidence interval for each BLUP.
+
+<break>
 <details><summary>BLUP Plot code</summary>
 ```{r, BLUP_Plot_Code, echo = TRUE, message=FALSE, warning=FALSE, eval = FALSE}
   # The waasby models as fit by gamem_met
@@ -336,8 +342,117 @@ BLUP_Plots$Histogram_Plot
 <break>
 
 From these plots I can make a few general observations. In both plots, you can see that several genotypes have yield BLUPs which are comparable with the Dunphy check cultivar. There was also fairly significant transgressive segregation for yield, but less so for seed oil and seed protein. The LMN09-119 parent had the lowest oil content, and the highest protein content. This is expected as it was selected based on it's extreme values in those two traits.  
+The confidence intervals of the yield BLUPs were much larger than those of the seed protein and oil measurements. This was expected given the aforementioned variability in yield for these genotypes across environments. Unfortunately the upshot of this is it will be difficult to assert that a genotype truly is better (or worse) than any other. You can see from the plot that all the genotypes fall within the 95% CI of the dunphy check cultivar. To give another point of reference, had a standard linear model been fit for analysis instead, the least significant difference for yield would be 292.5g, enough to encompass the full range of BLUPs. **This will have to be kept in mind while I proceed with additional analyses**. 
 
-While calculating the BLUPs for the genotypes is helpful 
+While calculating the BLUPs helps to get an idea of how the genotypes performed in each trait independently, this technique is not able to provide information on the stability of the genotypes across the environments. Additionally, the ultimate goal of this study is to identify genotypes with yield comparebale to check cultivars, and seed protein and oil compositions which exceed that of the check cultivars. While the BLUPs provide good estimates of the ranking of the genotypes for each trait in isolation, they do not directly provide a method of ranking genotypes by considering multiple traits simultaneously.  
+
+## Stability analysis
+It is important that the genotypes selected have *reliably* good performance in the traits under consideration. Many metrics exist to assess the stability of genotypes across environments. A starting point is with GGE biplot analysis[@yan2006biplot].
+<break>
+
+<details><summary>GGE Biplot code</summary>
+```{r, BiplotCode, eval=FALSE, echo = TRUE}
+# Fit the GGE model with the gge function from metan
+gge_model <- gge(BalancedData, 
+                   env  = ENV, 
+                   gen  = GEN, 
+                   resp = c("Yield", "Oil", "Protein"))
+
+# The names associated with the numeric biplot types
+  Biplot_type_names <- c("Basic" = 1,
+                         "Mean performance vs stability" = 2,
+                         "Which-won-where" = 3,
+                         "Discriminativeness vs, representativeness" = 4,
+                         "Examine an environment" = 5,
+                         "Rank Environments" = 6,
+                         "Examine a genotype" = 7,
+                         "Rank genotypes" = 8,
+                         "Compare two Genotypes" = 9,
+                         "Relationship among environments" = 10)
+  
+  # For this study, I'm most interested in types 2, and 8. 
+  
+  # A plotting function to return a single plot for all traits contained
+  # in a gge model object
+  GGE_Plot <- function(type = 2, GGEModel){
+    
+    # Get the names of the traits contained within the ggemodel object
+    TraitNames <- names(GGEModel)
+    
+    # Make a list to hold all the plots
+    PlotList        <- vector("list", length = length(GGEModel))
+    names(PlotList) <- TraitNames
+    
+    for(i in 1:length(PlotList)){
+        PlotList[[i]] <- plot(GGEModel, type = type, var = i, size.text.gen = 2)
+    }
+    
+    # Combine the biplots for each trait into a single image
+    arrange_ggplot(PlotList, tag_levels = list(TraitNames))
+  }
+  
+  Type2Plot <- GGE_Plot(GGEModel = gge_model)
+  Type8Plot <- GGE_Plot(type = 8, GGEModel = gge_model)
+  
+  # Arrange both plots into a single plot with patchwork
+  AllTypes <- Type2Plot / Type8Plot
+  
+  AllTypes[[1]] <- AllTypes[[1]] + plot_layout(tag_level = 'new')
+  AllTypes[[2]] <- AllTypes[[2]] + plot_layout(tag_level = 'new')
+  
+  Type2_8_GGEPlot <- AllTypes + plot_annotation(tag_levels = c('A', '1'))
+  
+```
+</details>
+
+```{r, GGE_biplots, echo = FALSE, fig.fullwidth = TRUE, fig.cap="GGE Biplots to show mean vs stability of performance and the ranking of genotypes for seed yield. ", fig.width=12, fig.height=12, message=FALSE, warning=FALSE}
+GGEPlots$Type_2_and_8
+```
+<break>
+
+Interpretating these plots merits some explanation. The upper plot is designed to visually rank genotypes on the basis of mean performance and stability across environments. The plot has a green axis marked with a green arrow. The position of genotypes along this line in the direction of the arrow indicate their mean performance, with genotypes further along the line in the direction of the arrow tending to perform better on average than those in the opposite direction of the arrow. The stability of a genotype can be assessed with this plot based on how away from this line it is, where genotypes located closer to the line are more stable than those which are further away. 
+
+The lower plot seeks to explicitely rank genotypes. A hypothetical "ideal" genotype which has the highest yield in all environments and is completely stable. This hypothetical perfect genotype is shown with the dark circle in the center of the concentric circles, and genotypes are ranked based on their distance from this genotype, with better genotypes located closer to the center. 
+
+Several observations are facilitated by these visualizations. First, we can see that the order of genotypes along the arrow in the first biplot matches the order of the BLUPs that we already calculated in the last section. What is added by this visualization beyond the BLUPs is an assessment of the stability of the genotypes across environments. We can see that while N18-1620 had the highest nominal yield, it was less stable than other comparable genotypes, like N18-1661, and the Dunphy check cultivar. These findings are reiterated in the second plot, where we can see that the Dunphy check cultivar was closest to the theoretical ideal, followed by N18-1661 and N18-1579. 
+
+Yield, however, is not the only trait of interest. It would be desirable to select genotypes on the basis of seed oil, and seed protein content as well. This is especially true for seed protein content as genotypes with both high yield and high protein are rare. This is illustrated in the data above as it can be seen that while the Dunphy check has among the highest and most consistent scores for yield, it performs nearly the worst in terms of protein content. 
+
+A simple extension of the biplot analysis is a so-called genotype by yield*trait analysis[@yan2018genotype]. In the author's own words, this evaluation based first on yield, then on other traits came from the following ideas:
+
+> "1) Yield is the most important trait and all other traits are important only when combined with high yield. 2) The superiority of a genotype should be judged by its levels in combining yield with other traits, rather than by its value in individual traits."
+
+This concept matches closely with the goals of this study, and so I thought the technique should be considered for evaluating genotypes. Briefly, in this analysis, a new dataset is created from the product of yield scores with other agronomically valuable traits. This new dataset is then subjected to SVD in the same fashion as in traditional GGE analysis to create the biplot which is shown below. 
+
+<break>
+
+<details><summary>GYT Biplot code</summary>
+```{r, GYTBiplotCode, eval=FALSE, echo = TRUE}
+  gytb(BalancedData, 
+       gen      = GEN, 
+       yield    = Yield, 
+       traits   = c("Protein", "LOD"),
+       ideotype = c('h', 'l'),
+       svp      = "genotype",
+       weight   = c(1, 0.5))
+  
+```
+</details>
+
+```{r, GYTPlot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="GYT biplot to show the combined relationships of genotypes performance of yield with seed protein and lodging.", fig.width=6, fig.height=6, message=FALSE, warning=FALSE}
+readd(GYTModel) %>% plot(size.text.gen = 3)
+```
+<break>
+
+Genotype vectors with small angles to the Yield\*Trait of interest have higher values of such a Yielld\*Trait combination. This means that to find genotypes with high values of both yield and protein, we should look for genotype lines which fall close to the green Y*Protein line. In this case, N18-1796, N18-1575, and N18-1751 appear to be the closest. Going back to the BLUP table, we can see that both these genotypes do indeed have both high protein, and yield comparable to the Dunphy check cultivar. Let's see where the BLUPs for these genotypes fall on the distributions for the three traits of interest. 
+
+```{r, BLUP_histogram_Plot_selections, echo = FALSE, fig.fullwidth = TRUE, fig.cap="Histograms of BLUPs for seed yield, seed oil, and seed protein. The BLUPs for parents and checks are labeled for each trait.", fig.width=12, fig.height=6, message=FALSE, warning=FALSE}
+BLUP_Plots$SelectionPlot
+```
+
+
+
+
 
 
 ## Reproducibility
