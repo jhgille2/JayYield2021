@@ -14,6 +14,7 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 library(drake)
 library(dplyr)
+library(patchwork)
 ```
 
 ## Introduction
@@ -431,25 +432,36 @@ This concept matches closely with the goals of this study, and so I thought the 
   gytb(BalancedData, 
        gen      = GEN, 
        yield    = Yield, 
-       traits   = c("Protein", "LOD"),
+       traits   = c("Protein", "Oil"),
        ideotype = c('h', 'l'),
        svp      = "genotype",
-       weight   = c(1, 0.5))
+       weight   = c(1, 1))
   
 ```
 </details>
 
-```{r, GYTPlot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="GYT biplot to show the combined relationships of genotypes performance of yield with seed protein and lodging.", fig.width=6, fig.height=6, message=FALSE, warning=FALSE}
-readd(GYTModel) %>% plot(size.text.gen = 3)
+```{r, GYTPlot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="GYT biplot to show the combined relationships of genotypes performance of yield with seed protein and seed oil.", fig.width=6, fig.height=6, message=FALSE, warning=FALSE}
+GYT <- readd(GYTModel)
+
+plot(GYT$Model, type = 2, size.text.gen = 3)
 ```
 <break>
 
-Genotype vectors with small angles to the Yield\*Trait of interest have higher values of such a Yielld\*Trait combination. This means that to find genotypes with high values of both yield and protein, we should look for genotype lines which fall close to the green Y*Protein line. In this case, N18-1796, N18-1575, and N18-1751 appear to be the closest. Going back to the BLUP table, we can see that both these genotypes do indeed have both high protein, and yield comparable to the Dunphy check cultivar. Let's see where the BLUPs for these genotypes fall on the distributions for the three traits of interest. 
+This plot serves to rank genotypes based on all the traits used in the analysis. The plot is interpreted as follows:
 
-```{r, BLUP_histogram_Plot_selections, echo = FALSE, fig.fullwidth = TRUE, fig.cap="Histograms of BLUPs for seed yield, seed oil, and seed protein. The BLUPs for parents and checks are labeled for each trait.", fig.width=12, fig.height=6, message=FALSE, warning=FALSE}
+* The horizontal green line with the single arrow head passes through the average yield\*trait combination and points towards higher values of these combinations. Genotypes further along this line have higher rankings in terms of overall yield\*trait combinations. Formally, this line is referred to as the average tester axis (ATA).
+* The vertical line that is perpendicular to the ATA passes through the average yield\*trait value. Genotypes which lie to the right of this line have above average performance in the traits being evaluated, and genotypes to the left are below average. 
+* The distance from the ATA indicates the balance of the trait profile for a given genotype. Genotypes placed close to the ATA have balanced profiles in the given traits while Genotypes placed further from the ATA have unbalanced profiles which tend to favor one trait over the other. 
+
+For example, the N18-1796 line is to the right of the mean line, is relatively far along the ATA, and is relatively far from the ATA in the direction of Y\*Protein. From this we can gather that this genotype has above average performance in yield, seed oil, and seed protein. Among the above average lines, it ranks among the top, and it has a seed composition that favors seed protein over seed oil. 
+
+Next, I'll check where some of these exceptional lines fall on the overall distributions for the three traits. 
+
+```{r, BLUP_histogram_Plot_selections, echo = FALSE, fig.fullwidth = TRUE, fig.cap="Histograms of BLUPs for seed yield, seed oil, and seed protein. Labels have been added for some of the genotypes identified in the last section. ", fig.width=12, fig.height=6, message=FALSE, warning=FALSE}
 BLUP_Plots$SelectionPlot
 ```
 
+You can see the conclusions derived from the GYT plot are reflected in the placement of the N18-1796 line on the histograms. 
 
 
 

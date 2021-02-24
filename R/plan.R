@@ -30,7 +30,7 @@ the_plan <-
     GGEPlots = plot_GGEModels(GGEModels),
     
     # Genotype by yield*trait plot
-    GYTModel = fit_GYTModel(BalancedData, TraitSelection = c("Protein", "LOD")),
+    GYTModel = fit_GYTModel(BalancedData, TraitSelection = c("Protein", "Oil"), wt = c(1, 1), ideo = c('h', 'h')),
     
     # General plots of the BLUPs
     BLUP_Plots = plot_BLUPs(MixedModels),

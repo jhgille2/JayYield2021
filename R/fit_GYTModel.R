@@ -5,14 +5,19 @@
 ##' @title
 ##' @param BalancedData
 ##' @param TraitSelection
-fit_GYTModel <- function(BalancedData, TraitSelection = c("Protein", "LOD")) {
+fit_GYTModel <- function(BalancedData, TraitSelection = c("Protein", "Oil"), wt = c(1, 1), ideo = c('h', 'h')) {
 
-  gytb(BalancedData, 
-       gen      = GEN, 
-       yield    = Yield, 
-       traits   = TraitSelection,
-       ideotype = c('h', 'l'),
-       svp      = "genotype",
-       weight   = c(1, 0.5))
-
+  GYTMod <- gytb(BalancedData, 
+                 gen      = GEN, 
+                 yield    = Yield, 
+                 traits   = all_of(TraitSelection),
+                 ideotype = all_of(ideo),
+                 svp      = "genotype",
+                 weight   = all_of(wt))
+  
+  # Get the superiority indices from the model
+  SITable <- get_model_data(GYTMod, what = "si")
+  
+  return(list("Model"    = GYTMod, 
+              "SI_Table" = SITable))
 }
