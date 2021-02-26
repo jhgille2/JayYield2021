@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = FALSE)
 library(drake)
 library(dplyr)
 library(patchwork)
+library(ggthemes)
 ```
 
 ## Introduction
@@ -430,41 +431,48 @@ This concept matches closely with the goals of this study, and so I thought the 
 <details><summary>GYT Biplot code</summary>
 ```{r, GYTBiplotCode, eval=FALSE, echo = TRUE}
   gytb(BalancedData, 
-       gen      = GEN, 
-       yield    = Yield, 
-       traits   = c("Protein", "Oil"),
-       ideotype = c('h', 'l'),
-       svp      = "genotype",
-       weight   = c(1, 1))
+                  gen       = GEN, 
+                  yield     = Yield, 
+                  traits    = c("Protein", "Oil", "ag_score", "LOD"),
+                  ideotype  = c("h", "h", "l", "l"), # High values for protein and oil, low values for ag_score and LOD.
+                  svp       = "genotype",            # Focused on differentiating genotypes
+                  scaling   = 1, 
+                  centering = 2,
+                  weight    = c(1, 1, 0.5, 0.5))     # Weight ag_score and lodging half as much as protein and oil (ag_score and lodging are already very correlated).
   
 ```
 </details>
 
-```{r, GYTPlot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="GYT biplot to show the combined relationships of genotypes performance of yield with seed protein and seed oil.", fig.width=6, fig.height=6, message=FALSE, warning=FALSE}
+```{r, GYTPlot, echo = FALSE, fig.fullwidth = TRUE, fig.cap="GYT biplot to show the combined relationships of genotypes performance of yield with seed protein, seed oil, lodging, and agronomic score.", fig.width=6, fig.height=6, message=FALSE, warning=FALSE}
 GYT <- readd(GYTModel)
 
-plot(GYT$Model, type = 2, size.text.gen = 3)
+plot(GYT$Model_ag, type = 2, size.text.gen = 1.5, size.text.env = 2)
 ```
 <break>
 
 This plot serves to rank genotypes based on all the traits used in the analysis. The plot is interpreted as follows:
 
-* The horizontal green line with the single arrow head passes through the average yield\*trait combination and points towards higher values of these combinations. Genotypes further along this line have higher rankings in terms of overall yield\*trait combinations. Formally, this line is referred to as the average tester axis (ATA).
+* The green line with the single arrow head passes through the global average yield\*trait combination and points towards higher values of these combinations. Genotypes further along this line in the direction of the arrow have higher rankings in terms of overall yield\*trait combinations. Formally, this line is referred to as the average tester axis (ATA). Trait combinations such as Y/ag_score indicate that yield is divided by ag_score when creating the table for analysis. This is because lower values of ag_score are more desirable than high values. 
 * The vertical line that is perpendicular to the ATA passes through the average yield\*trait value. Genotypes which lie to the right of this line have above average performance in the traits being evaluated, and genotypes to the left are below average. 
 * The distance from the ATA indicates the balance of the trait profile for a given genotype. Genotypes placed close to the ATA have balanced profiles in the given traits while Genotypes placed further from the ATA have unbalanced profiles which tend to favor one trait over the other. 
 
-For example, the N18-1796 line is to the right of the mean line, is relatively far along the ATA, and is relatively far from the ATA in the direction of Y\*Protein. From this we can gather that this genotype has above average performance in yield, seed oil, and seed protein. Among the above average lines, it ranks among the top, and it has a seed composition that favors seed protein over seed oil. 
+For example, the N18-1796 line is to the right of the mean line, is relatively far along the ATA, and is relatively far from the ATA in the direction of Y\*Protein. From this we can gather that this genotype has above average performance in yield, seed oil, and seed protein, and it favors seed protein over seed oil, lodging, and agronomic score. 
 
-Next, I'll check where some of these exceptional lines fall on the overall distributions for the three traits. 
+The GYT analysis can then be used to derive a superiority index based on the combined values of yield with the traits. This can then be used to rank the genotypes according to their multi-trait performance.
+
+<br>
+<details><summary>Superiority Indices</summary>
+```{r, SuperiorityIndices, echo = FALSE, message=FALSE, warning=FALSE}
+GYT$Formatted_SITable
+```
+</details>
+<br>
+
+Lets see where some of these exceptional lines fall on the overall distributions for the three traits. 
 
 ```{r, BLUP_histogram_Plot_selections, echo = FALSE, fig.fullwidth = TRUE, fig.cap="Histograms of BLUPs for seed yield, seed oil, and seed protein. Labels have been added for some of the genotypes identified in the last section. ", fig.width=12, fig.height=6, message=FALSE, warning=FALSE}
 BLUP_Plots$SelectionPlot
 ```
-
-You can see the conclusions derived from the GYT plot are reflected in the placement of the N18-1796 line on the histograms. 
-
-
-
 
 
 ## Reproducibility

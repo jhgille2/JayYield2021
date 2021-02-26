@@ -1,5 +1,10 @@
 ## library() calls go here
 
+list.of.packages <- c("conflicted", "dotenv", "drake", "here", "tidyverse", "gsheet", "readxl", "janitor", "ggplot2", "ggcorrplot", "cowplot", 
+                      "patchwork", "gt", "ggthemes", "tufte", "kableExtra", "ggrepel", "hrbrthemes", "emmeans", "lme4", "metan", "rmarkdown", "bookdown")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
 # Organization
 library(conflicted)
 library(dotenv)
