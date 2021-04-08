@@ -42,8 +42,8 @@ the_plan <-
     Report = callr::r(
       function(...) rmarkdown::render(...),
       args = list(
-        input = drake::knitr_in("C:/Users/Jay/Desktop/Documents/R/JayYield2021/doc/analysis.Rmd"),
-        output_file = drake::file_out("C:/Users/Jay/Desktop/Documents/R/JayYield2021/doc/analysis.html")
+        input = drake::knitr_in("C:/Users/Jay/Desktop/Documents/R/JayYield2021/docs/analysis.Rmd"),
+        output_file = drake::file_out("C:/Users/Jay/Desktop/Documents/R/JayYield2021/docs/analysis.html")
       )
     )
 
